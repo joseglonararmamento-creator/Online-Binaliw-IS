@@ -1,18 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
     }
 
     function isOwner(userId) {
@@ -20,15 +11,15 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
+      return id is string && id.size() <= 128;
     }
 
     function existing() {
       return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
     }
 
     function getUserData() {
@@ -44,206 +35,127 @@ service cloud.firestore {
       return isSignedIn() && getUserData().get('role', '') == 'student';
     }
 
-    // --- Entity Validations ---
-
-    function isValidUser(data) {
-      return data.uid == request.auth.uid 
-        && data.email is string && data.email.size() > 0 && data.email.size() <= 256
-        && (data.role == 'teacher' || data.role == 'student')
-        && (data.createdAt == request.time || data.keys().hasOnly(['isOnline', 'lastActive']));
-    }
-
-    function isValidLesson(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() <= 256
-        && data.teacherId == request.auth.uid
-        && data.createdAt == request.time;
-    }
-
-    function isValidAssignment(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() <= 256
-        && data.deadline is timestamp
-        && data.teacherId == request.auth.uid
-        && data.createdAt == request.time;
-    }
-
-    function isValidSubmission(data) {
-      return data.assignmentId is string && data.assignmentId.size() <= 128
-        && data.studentId == request.auth.uid
-        && data.status == 'submitted'
-        && data.submittedAt == request.time;
-    }
-
-    function isValidPost(data) {
-      return data.authorId == request.auth.uid
-        && data.text is string && data.text.size() > 0 && data.text.size() <= 10000
-        && data.createdAt == request.time;
-    }
-
-    function isValidClass(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() <= 256
-        && data.teacherId == request.auth.uid
-        && data.inviteCode is string && data.inviteCode.size() > 0;
-    }
-
-    function isValidNotification(data) {
-      return data.userId is string && data.userId.size() <= 128
-        && data.text is string && data.text.size() > 0;
-    }
-
     // --- Collections ---
 
-    match /test/connection {
-      allow read: if isSignedIn();
-    }
-
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId);
-      allow list: if isSignedIn();
-      allow create: if isOwner(userId) && isValidId(userId);
-      allow update: if isOwner(userId) && isValidId(userId);
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
     }
 
     match /posts/{postId} {
-      allow get: if isSignedIn() && isValidId(postId);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(postId);
-      allow update: if isSignedIn() && isValidId(postId);
-      allow delete: if isSignedIn() && isValidId(postId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isOwner(existing().authorId) || incoming().diff(existing()).affectedKeys().hasOnly(['likes']));
+      allow delete: if isSignedIn() && (isOwner(existing().authorId) || isTeacher());
     }
 
     match /lessons/{lessonId} {
-      allow get: if isSignedIn() && isValidId(lessonId);
-      allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(lessonId);
-      allow update: if isTeacher() && isValidId(lessonId) && existing().teacherId == request.auth.uid;
-      allow delete: if isTeacher() && isValidId(lessonId) && existing().teacherId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() && isOwner(existing().teacherId);
     }
 
     match /assignments/{assignmentId} {
-      allow get: if isSignedIn() && isValidId(assignmentId);
-      allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(assignmentId);
-      allow update: if isTeacher() && isValidId(assignmentId) && existing().teacherId == request.auth.uid;
-      allow delete: if isTeacher() && isValidId(assignmentId) && existing().teacherId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() && isOwner(existing().teacherId);
     }
 
     match /submissions/{submissionId} {
-      allow get: if isSignedIn() && isValidId(submissionId);
-      allow list: if isSignedIn() && (isTeacher() || resource.data.studentId == request.auth.uid);
-      allow create: if isStudent() && isValidId(submissionId);
-      allow update: if isTeacher() && isValidId(submissionId);
+      allow read: if isSignedIn();
+      allow create: if isStudent();
+      allow update: if isTeacher();
     }
 
     match /notifications/{notificationId} {
-      allow get: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(notificationId);
-      allow update: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
-      allow delete: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
+      allow read: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isOwner(existing().userId);
     }
 
     match /classes/{classId} {
-      allow get: if isSignedIn() && isValidId(classId);
-      allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(classId);
-      allow update: if isValidId(classId) && (isTeacher() && existing().teacherId == request.auth.uid);
-      allow delete: if isTeacher() && isValidId(classId) && existing().teacherId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() && isOwner(existing().teacherId);
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId);
-        allow list: if isSignedIn();
-        allow create: if isSignedIn() && isValidId(messageId) && incoming().senderId == request.auth.uid;
-        allow delete: if isSignedIn() && isValidId(messageId) && (existing().senderId == request.auth.uid || isTeacher());
-        allow update: if isSignedIn() && isValidId(messageId);
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn();
       }
     }
 
     match /friends/{friendshipId} {
-      allow get: if isSignedIn() && isValidId(friendshipId);
-      allow list: if isSignedIn() && (resource.data.user1 == request.auth.uid || resource.data.user2 == request.auth.uid);
-      allow create: if isSignedIn() && isValidId(friendshipId);
-      allow update: if isSignedIn() && isValidId(friendshipId);
-      allow delete: if isSignedIn() && isValidId(friendshipId);
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     match /quizzes/{quizId} {
-      allow get: if isSignedIn() && isValidId(quizId);
-      allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(quizId);
-      allow update, delete: if isTeacher() && isValidId(quizId) && existing().teacherId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() && isOwner(existing().teacherId);
     }
 
     match /quizAttempts/{attemptId} {
-      allow get: if isSignedIn() && isValidId(attemptId);
-      allow list: if isSignedIn() && (isTeacher() || resource.data.studentId == request.auth.uid);
-      allow create: if isStudent() && isValidId(attemptId);
+      allow read: if isSignedIn();
+      allow create: if isStudent();
     }
     
     match /reminders/{reminderId} {
-      allow get: if isSignedIn() && isValidId(reminderId);
-      allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(reminderId);
-      allow update, delete: if isTeacher() && isValidId(reminderId) && existing().teacherId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() && isOwner(existing().teacherId);
     }
 
     match /chats/{chatId} {
-      allow get: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
-      allow list: if isSignedIn() && chatId.contains(request.auth.uid);
-      allow create: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
-      allow update: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
+      allow read, create, update: if isSignedIn() && chatId.contains(request.auth.uid);
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId) && chatId.contains(request.auth.uid);
-        allow list: if isSignedIn() && chatId.contains(request.auth.uid);
-        allow create: if isSignedIn() && isValidId(messageId) && incoming().senderId == request.auth.uid;
-        allow delete: if isSignedIn() && isValidId(messageId) && existing().senderId == request.auth.uid;
-        allow update: if isSignedIn() && isValidId(messageId);
+        allow read: if isSignedIn() && chatId.contains(request.auth.uid);
+        allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
+        allow delete: if isSignedIn() && existing().senderId == request.auth.uid;
+        allow update: if isSignedIn();
       }
 
       match /typing/{userId} {
-        allow get: if isSignedIn() && isValidId(userId);
-        allow list: if isSignedIn();
-        allow write: if isOwner(userId) && isValidId(userId);
+        allow read, write: if isSignedIn();
       }
     }
 
     match /confessions/{confessionId} {
-      allow get: if isSignedIn() && isValidId(confessionId);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(confessionId);
-      allow update: if isSignedIn() && isValidId(confessionId);
-      allow delete: if isSignedIn() && isValidId(confessionId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && (isOwner(existing().authorId) || isTeacher());
     }
 
     match /comments/{commentId} {
-      allow get: if isSignedIn() && isValidId(commentId);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(commentId);
-      allow delete: if isSignedIn() && isValidId(commentId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn() && (isOwner(existing().authorId) || isTeacher());
     }
 
     match /calendarEvents/{eventId} {
-      allow get: if isSignedIn() && isValidId(eventId);
-      allow list: if isSignedIn();
-      allow create, update, delete: if isTeacher() && isValidId(eventId);
+      allow read: if isSignedIn();
+      allow create, update, delete: if isTeacher();
     }
 
     match /post_likes/{likeId} {
-      allow get: if isSignedIn() && isValidId(likeId);
-      allow list: if isSignedIn();
-      allow create, delete: if isSignedIn() && isValidId(likeId);
+      allow read, create, delete: if isSignedIn();
     }
 
     match /confession_likes/{likeId} {
-      allow get: if isSignedIn() && isValidId(likeId);
-      allow list: if isSignedIn();
-      allow create, delete: if isSignedIn() && isValidId(likeId);
+      allow read, create, delete: if isSignedIn();
     }
 
-    // 0. Global Safety Net (Move to bottom for some specific rule engine behaviors)
+    // Connectivity Test
+    match /test/connection {
+      allow read: if isSignedIn();
+    }
+
+    // 0. Global Safety Net (Bottom)
     match /{document=**} {
       allow read, write: if false;
     }
-
   }
 }
