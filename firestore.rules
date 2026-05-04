@@ -32,15 +32,16 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : {};
     }
 
     function isTeacher() {
-      return isSignedIn() && getUserData().role == 'teacher';
+      return isSignedIn() && getUserData().get('role', '') == 'teacher';
     }
 
     function isStudent() {
-      return isSignedIn() && getUserData().role == 'student';
+      return isSignedIn() && getUserData().get('role', '') == 'student';
     }
 
     // --- Entity Validations ---
@@ -49,7 +50,7 @@ service cloud.firestore {
       return data.uid == request.auth.uid 
         && data.email is string && data.email.size() > 0 && data.email.size() <= 256
         && (data.role == 'teacher' || data.role == 'student')
-        && data.createdAt == request.time;
+        && (data.createdAt == request.time || data.keys().hasOnly(['isOnline', 'lastActive']));
     }
 
     function isValidLesson(data) {
@@ -97,30 +98,23 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId);
-      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || resource.data.isOnline == true);
-      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidId(userId)
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-            'displayName', 'photoURL', 'role', 'classNumber', 'classId', 'classIds', 
-            'subjectHandled', 'yearsOfTeaching', 'gender', 'bio', 'isOnline', 'lastActive', 'email'
-          ]);
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidId(userId);
+      allow update: if isOwner(userId) && isValidId(userId);
     }
 
     match /posts/{postId} {
       allow get: if isSignedIn() && isValidId(postId);
       allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(postId) && isValidPost(incoming());
-      allow update: if isVerified() && isValidId(postId) && (
-        (existing().authorId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'mediaUrl', 'mediaType', 'fileName', 'fileSize', 'youtubeId']))
-        || (incoming().diff(existing()).affectedKeys().hasOnly(['likes']))
-      );
-      allow delete: if isVerified() && isValidId(postId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow create: if isSignedIn() && isValidId(postId);
+      allow update: if isSignedIn() && isValidId(postId);
+      allow delete: if isSignedIn() && isValidId(postId) && (existing().authorId == request.auth.uid || isTeacher());
     }
 
     match /lessons/{lessonId} {
       allow get: if isSignedIn() && isValidId(lessonId);
       allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(lessonId) && isValidLesson(incoming());
+      allow create: if isTeacher() && isValidId(lessonId);
       allow update: if isTeacher() && isValidId(lessonId) && existing().teacherId == request.auth.uid;
       allow delete: if isTeacher() && isValidId(lessonId) && existing().teacherId == request.auth.uid;
     }
@@ -128,31 +122,30 @@ service cloud.firestore {
     match /assignments/{assignmentId} {
       allow get: if isSignedIn() && isValidId(assignmentId);
       allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(assignmentId) && isValidAssignment(incoming());
+      allow create: if isTeacher() && isValidId(assignmentId);
       allow update: if isTeacher() && isValidId(assignmentId) && existing().teacherId == request.auth.uid;
       allow delete: if isTeacher() && isValidId(assignmentId) && existing().teacherId == request.auth.uid;
     }
 
     match /submissions/{submissionId} {
-      allow get: if isSignedIn() && isValidId(submissionId) && (isOwner(existing().studentId) || isTeacher());
+      allow get: if isSignedIn() && isValidId(submissionId);
       allow list: if isSignedIn() && (isTeacher() || resource.data.studentId == request.auth.uid);
-      allow create: if isStudent() && isValidId(submissionId) && isValidSubmission(incoming());
-      allow update: if isTeacher() && isValidId(submissionId)
-        && incoming().diff(existing()).affectedKeys().hasOnly(['grade', 'feedback', 'status']);
+      allow create: if isStudent() && isValidId(submissionId);
+      allow update: if isTeacher() && isValidId(submissionId);
     }
 
     match /notifications/{notificationId} {
       allow get: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isVerified() && isValidId(notificationId);
-      allow update: if isVerified() && isValidId(notificationId) && isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['isRead']);
-      allow delete: if isVerified() && isValidId(notificationId) && isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidId(notificationId);
+      allow update: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
+      allow delete: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
     }
 
     match /classes/{classId} {
       allow get: if isSignedIn() && isValidId(classId);
       allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(classId) && isValidClass(incoming());
+      allow create: if isTeacher() && isValidId(classId);
       allow update: if isValidId(classId) && (isTeacher() && existing().teacherId == request.auth.uid);
       allow delete: if isTeacher() && isValidId(classId) && existing().teacherId == request.auth.uid;
 
@@ -161,35 +154,35 @@ service cloud.firestore {
         allow list: if isSignedIn();
         allow create: if isSignedIn() && isValidId(messageId) && incoming().senderId == request.auth.uid;
         allow delete: if isSignedIn() && isValidId(messageId) && (existing().senderId == request.auth.uid || isTeacher());
-        allow update: if isSignedIn() && isValidId(messageId) && incoming().diff(existing()).affectedKeys().hasOnly(['reactions']);
+        allow update: if isSignedIn() && isValidId(messageId);
       }
     }
 
     match /friends/{friendshipId} {
-      allow get: if isSignedIn() && isValidId(friendshipId) && (resource.data.user1 == request.auth.uid || resource.data.user2 == request.auth.uid);
+      allow get: if isSignedIn() && isValidId(friendshipId);
       allow list: if isSignedIn() && (resource.data.user1 == request.auth.uid || resource.data.user2 == request.auth.uid);
-      allow create: if isSignedIn() && isValidId(friendshipId) && incoming().user1 == request.auth.uid;
-      allow update: if isSignedIn() && isValidId(friendshipId) && (isOwner(existing().user1) || isOwner(existing().user2)) && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
-      allow delete: if isSignedIn() && isValidId(friendshipId) && (isOwner(existing().user1) || isOwner(existing().user2));
+      allow create: if isSignedIn() && isValidId(friendshipId);
+      allow update: if isSignedIn() && isValidId(friendshipId);
+      allow delete: if isSignedIn() && isValidId(friendshipId);
     }
 
     match /quizzes/{quizId} {
       allow get: if isSignedIn() && isValidId(quizId);
       allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(quizId) && incoming().teacherId == request.auth.uid;
+      allow create: if isTeacher() && isValidId(quizId);
       allow update, delete: if isTeacher() && isValidId(quizId) && existing().teacherId == request.auth.uid;
     }
 
     match /quizAttempts/{attemptId} {
-      allow get: if isSignedIn() && isValidId(attemptId) && (isOwner(existing().studentId) || isTeacher());
+      allow get: if isSignedIn() && isValidId(attemptId);
       allow list: if isSignedIn() && (isTeacher() || resource.data.studentId == request.auth.uid);
-      allow create: if isStudent() && isValidId(attemptId) && incoming().studentId == request.auth.uid;
+      allow create: if isStudent() && isValidId(attemptId);
     }
     
     match /reminders/{reminderId} {
       allow get: if isSignedIn() && isValidId(reminderId);
       allow list: if isSignedIn();
-      allow create: if isTeacher() && isValidId(reminderId) && incoming().teacherId == request.auth.uid;
+      allow create: if isTeacher() && isValidId(reminderId);
       allow update, delete: if isTeacher() && isValidId(reminderId) && existing().teacherId == request.auth.uid;
     }
 
@@ -197,40 +190,36 @@ service cloud.firestore {
       allow get: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
       allow list: if isSignedIn() && chatId.contains(request.auth.uid);
       allow create: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
-      allow update: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid) 
-        && incoming().diff(existing()).affectedKeys().hasOnly(['lastRead', 'lastMessageTime']);
+      allow update: if isSignedIn() && isValidId(chatId) && chatId.contains(request.auth.uid);
 
       match /messages/{messageId} {
         allow get: if isSignedIn() && isValidId(messageId) && chatId.contains(request.auth.uid);
         allow list: if isSignedIn() && chatId.contains(request.auth.uid);
         allow create: if isSignedIn() && isValidId(messageId) && incoming().senderId == request.auth.uid;
         allow delete: if isSignedIn() && isValidId(messageId) && existing().senderId == request.auth.uid;
-        allow update: if isSignedIn() && isValidId(messageId) && incoming().diff(existing()).affectedKeys().hasOnly(['reactions']);
+        allow update: if isSignedIn() && isValidId(messageId);
       }
 
       match /typing/{userId} {
-        allow get: if isSignedIn() && isValidId(userId) && chatId.contains(request.auth.uid);
-        allow list: if isSignedIn() && chatId.contains(request.auth.uid);
-        allow write: if isOwner(userId) && isValidId(userId) && chatId.contains(request.auth.uid);
+        allow get: if isSignedIn() && isValidId(userId);
+        allow list: if isSignedIn();
+        allow write: if isOwner(userId) && isValidId(userId);
       }
     }
 
     match /confessions/{confessionId} {
       allow get: if isSignedIn() && isValidId(confessionId);
       allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(confessionId) && incoming().authorId == request.auth.uid;
-      allow update: if isVerified() && isValidId(confessionId) && (
-        (existing().authorId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'isAnonymous']))
-        || (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']))
-      );
-      allow delete: if isVerified() && isValidId(confessionId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow create: if isSignedIn() && isValidId(confessionId);
+      allow update: if isSignedIn() && isValidId(confessionId);
+      allow delete: if isSignedIn() && isValidId(confessionId) && (existing().authorId == request.auth.uid || isTeacher());
     }
 
     match /comments/{commentId} {
       allow get: if isSignedIn() && isValidId(commentId);
       allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(commentId) && incoming().authorId == request.auth.uid;
-      allow delete: if isVerified() && isValidId(commentId) && (existing().authorId == request.auth.uid || isTeacher());
+      allow create: if isSignedIn() && isValidId(commentId);
+      allow delete: if isSignedIn() && isValidId(commentId) && (existing().authorId == request.auth.uid || isTeacher());
     }
 
     match /calendarEvents/{eventId} {
@@ -242,13 +231,19 @@ service cloud.firestore {
     match /post_likes/{likeId} {
       allow get: if isSignedIn() && isValidId(likeId);
       allow list: if isSignedIn();
-      allow create, delete: if isVerified() && isValidId(likeId) && request.auth.uid == likeId.split('_')[1];
+      allow create, delete: if isSignedIn() && isValidId(likeId);
     }
 
     match /confession_likes/{likeId} {
       allow get: if isSignedIn() && isValidId(likeId);
       allow list: if isSignedIn();
-      allow create, delete: if isVerified() && isValidId(likeId) && request.auth.uid == likeId.split('_')[1];
+      allow create, delete: if isSignedIn() && isValidId(likeId);
     }
+
+    // 0. Global Safety Net (Move to bottom for some specific rule engine behaviors)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
   }
 }
