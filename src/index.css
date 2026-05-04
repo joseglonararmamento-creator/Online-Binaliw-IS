@@ -27,11 +27,13 @@
   }
 
   img {
-    @apply object-cover bg-slate-100;
+    object-fit: cover;
+    background-color: var(--color-slate-100);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
   }
 
   /* Allow text selection in specific areas like lessons/inputs */
