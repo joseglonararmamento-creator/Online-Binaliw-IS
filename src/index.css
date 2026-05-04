@@ -14,7 +14,9 @@
 
 @layer base {
   html, body {
-    @apply antialiased overflow-x-hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
     background-color: #F0F2F5;
     font-family: var(--font-sans);
     letter-spacing: -0.015em;
@@ -38,7 +40,12 @@
   }
 
   button, a {
-    @apply transition-all active:scale-95 cursor-pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+  
+  button:active, a:active {
+    transform: scale(0.95);
   }
 }
 
@@ -49,16 +56,22 @@
 }
 
 @utility glass-light {
-  @apply bg-white border border-white/30;
+  background-color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   @supports (backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px)) {
-    @apply bg-white/70 backdrop-blur-md;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }
 
 @utility glass-dark {
-  @apply bg-slate-950 border border-white/10;
+  background-color: #020617;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   @supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
-    @apply bg-slate-950/60 backdrop-blur-lg;
+    background-color: rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 }
 
@@ -75,7 +88,9 @@
   background: linear-gradient(white, white) padding-box,
               linear-gradient(to right, var(--color-neo-indigo), var(--color-neo-purple)) border-box;
   border: 1px solid transparent;
-  @apply gpu-accel;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @utility border-gradient-neo-dark {
@@ -83,7 +98,9 @@
   background: linear-gradient(#0f172a, #0f172a) padding-box,
               linear-gradient(to right, var(--color-neo-pink), var(--color-neo-purple)) border-box;
   border: 1px solid transparent;
-  @apply gpu-accel;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @utility confessions-theme {
