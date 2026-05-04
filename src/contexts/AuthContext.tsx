@@ -88,6 +88,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const data = { ...docSnap.data(), uid: docSnap.id } as UserProfile;
             setProfile(data);
             
+            // Set online status only if profile already exists to satisfy strict rules
+            if (isOnline) {
+              setDoc(userDocRef, { 
+                isOnline: true, 
+                lastActive: serverTimestamp() 
+              }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid} online`));
+            }
+
             // If profile exists but role is missing, we need onboarding
             if (!data.role) {
               setLoading(false);
@@ -101,12 +109,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
           setLoading(false);
         });
-
-        // Set online status
-        setDoc(userDocRef, { 
-          isOnline: true, 
-          lastActive: serverTimestamp() 
-        }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid} online`));
 
         // Background Sync for Quiz Attempts
         if (isOnline) {
