@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-neo-blue: #4f46e5;
+  --color-neo-pink: #ec4899;
+  --color-neo-indigo: #6366f1;
+  --color-neo-purple: #a855f7;
+}
+
+@layer base {
+  html, body {
+    @apply antialiased overflow-x-hidden;
+    background-color: #F0F2F5;
+    font-family: var(--font-sans);
+    letter-spacing: -0.015em;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  img {
+    @apply object-cover bg-slate-100;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Allow text selection in specific areas like lessons/inputs */
+  input, textarea, [contenteditable="true"], .markdown-body {
+    user-select: text;
+  }
+
+  button, a {
+    @apply transition-all active:scale-95 cursor-pointer;
+  }
+}
+
+@utility gpu-accel {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@utility glass-light {
+  @apply bg-white border border-white/30;
+  @supports (backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px)) {
+    @apply bg-white/70 backdrop-blur-md;
+  }
+}
+
+@utility glass-dark {
+  @apply bg-slate-950 border border-white/10;
+  @supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+    @apply bg-slate-950/60 backdrop-blur-lg;
+  }
+}
+
+@utility neon-glow-indigo {
+  filter: drop-shadow(0 0 10px rgba(79, 70, 229, 0.4));
+}
+
+@utility neon-glow-pink {
+  filter: drop-shadow(0 0 15px rgba(236, 72, 153, 0.6));
+}
+
+@utility border-gradient-neo {
+  position: relative;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(to right, var(--color-neo-indigo), var(--color-neo-purple)) border-box;
+  border: 1px solid transparent;
+  @apply gpu-accel;
+}
+
+@utility border-gradient-neo-dark {
+  position: relative;
+  background: linear-gradient(#0f172a, #0f172a) padding-box,
+              linear-gradient(to right, var(--color-neo-pink), var(--color-neo-purple)) border-box;
+  border: 1px solid transparent;
+  @apply gpu-accel;
+}
+
+@utility confessions-theme {
+  background: radial-gradient(circle at top right, #1e1b4b, #020617);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}

@@ -1,0 +1,295 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user profiles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["teacher", "student"] },
+        "classNumber": { "type": "string" },
+        "classId": { "type": "string" },
+        "classIds": { "type": "array", "items": { "type": "string" } },
+        "isOnline": { "type": "boolean" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "subjectHandled": { "type": "string" },
+        "yearsOfTeaching": { "type": "string" },
+        "gender": { "type": "string" },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Educational content and resources",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrls": { "type": "array", "items": { "type": "string" } },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "teacherId"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Tasks given to students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "deadline", "lessonId", "teacherId"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student work submissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "content": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" },
+        "grade": { "type": "number" },
+        "feedback": { "type": "string" },
+        "status": { "type": "string", "enum": ["submitted", "graded"] },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["assignmentId", "studentId", "status"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Assessment quizzes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "title": { "type": "string" },
+        "questions": { "type": "array" },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lessonId", "title", "questions"]
+    },
+    "QuizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Student results for quizzes",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "score": { "type": "number" },
+        "total": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat messages",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "classId": { "type": "string" },
+        "classNumber": { "type": "string" },
+        "text": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "audio", "emoji", "file"] },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "youtubeMetadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "reactions": { "type": "object" },
+        "readBy": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Post": {
+      "title": "Post",
+      "description": "User status updates and feed posts",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "likes": { "type": "number" },
+        "youtubeId": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "file"] },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "number" }
+      },
+      "required": ["authorId", "authorName", "text"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comments on posts or confessions",
+      "type": "object",
+      "properties": {
+        "parentId": { "type": "string" },
+        "parentType": { "type": "string", "enum": ["post", "confession"] },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "youtubeId": { "type": "string" }
+      },
+      "required": ["parentId", "parentType", "authorId", "authorName", "text"]
+    },
+    "Confession": {
+      "title": "Confession",
+      "description": "Anonymous or public user thoughts",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "file"] },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "youtubeId": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "text", "isAnonymous"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Teacher status updates and class reminders",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "classId": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["status", "reminder"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherId", "classId", "text"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "Classroom groups",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "inviteCode", "teacherId"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Connection between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user1": { "type": "string" },
+        "user2": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user1", "user2", "status"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alerts",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["friend_request", "new_post", "post_liked", "class_join_request", "post_comment", "class_accepted", "confession_liked", "confession_comment"] },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "link": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "postId": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" }
+      },
+      "required": ["userId", "type", "text", "isRead"]
+    },
+    "CalendarEvent": {
+      "title": "CalendarEvent",
+      "description": "Important dates",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string" }
+      }
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "description": "User like on a post",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "userId"]
+    },
+    "ConfessionLike": {
+      "title": "ConfessionLike",
+      "description": "User like on a confession",
+      "type": "object",
+      "properties": {
+        "confessionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["confessionId", "userId"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Users of the platform" },
+    "lessons": { "schema": "Lesson", "description": "Course content" },
+    "assignments": { "schema": "Assignment", "description": "Tasks for students" },
+    "submissions": { "schema": "Submission", "description": "Work submitted by students" },
+    "quizzes": { "schema": "Quiz", "description": "Assessment quizzes" },
+    "quizAttempts": { "schema": "QuizAttempt", "description": "Results of quizzes" },
+    "messages": { "schema": "Message", "description": "Direct messages between users" },
+    "notifications": { "schema": "Notification", "description": "User notifications" },
+    "calendarEvents": { "schema": "CalendarEvent", "description": "Shared calendar dates" },
+    "reminders": { "schema": "Reminder", "description": "Teacher status updates and class reminders" },
+    "classes": { "schema": "Class", "description": "Classroom groups" },
+    "posts": { "schema": "Post", "description": "User status updates" },
+    "confessions": { "schema": "Confession", "description": "Anonymous or public confessions" },
+    "comments": { "schema": "Comment", "description": "User comments on posts or confessions" },
+    "friends": { "schema": "Friendship", "description": "User connections" },
+    "chats/{chatId}": { "schema": "object", "description": "Chat metadata including read receipts" },
+    "chats/{chatId}/messages": { "schema": "Message", "description": "Messages in a direct chat" },
+    "chats/{chatId}/typing": { "schema": "object", "description": "Real-time typing indicators" },
+    "classes/{classId}/messages": { "schema": "Message", "description": "Messages in a class channel" },
+    "post_likes/{likeId}": { "schema": "PostLike", "description": "User likes on posts" },
+    "confession_likes/{likeId}": { "schema": "ConfessionLike", "description": "User likes on confessions" }
+  }
+}

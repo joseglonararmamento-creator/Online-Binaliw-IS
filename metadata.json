@@ -1,0 +1,8 @@
+{
+  "name": "Remix: BISonline | Binaliw Integrated School",
+  "description": "Binaliw Integrated School (BISonline) - A collaborative online learning platform for students and teachers of Binaliw Integrated School, Danao City.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
