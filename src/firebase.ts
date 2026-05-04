@@ -26,18 +26,8 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth();
 
-// Validate Connection to Firestore
-async function testConnection() {
-  try {
-    // Attempt to fetch a dummy doc to verify connection
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable'))) {
-      console.warn("Firestore is operating in offline mode. Changes will sync once connection is restored.");
-    }
-  }
-}
-testConnection();
+// Remove module-level testConnection to avoid permission-denied errors before auth
+// It is handled in AuthContext for authenticated users.
 
 let storageInstance: FirebaseStorage | null = null;
 try {

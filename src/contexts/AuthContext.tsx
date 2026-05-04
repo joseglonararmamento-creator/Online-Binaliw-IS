@@ -59,15 +59,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.addEventListener('offline', handleOffline);
 
     const testConnection = async () => {
+      if (!isOnline) return;
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
-        if(error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable'))) {
-          console.warn("Firestore is operating in offline mode.");
+        // Only log real connectivity issues, ignore auth errors
+        if(error instanceof Error && (error.message.includes('unavailable') || error.message.includes('offline'))) {
+          console.warn("Firestore connectivity warning:", error.message);
         }
       }
     };
-    testConnection();
+    if (user) testConnection();
 
     let unsubscribeProfile: (() => void) | null = null;
 
@@ -84,29 +86,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = { ...docSnap.data(), uid: docSnap.id } as UserProfile;
-            setProfile(data);
-            
-            // Set online status only if profile already exists to satisfy strict rules
-            if (isOnline) {
-              setDoc(userDocRef, { 
-                isOnline: true, 
-                lastActive: serverTimestamp() 
-              }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid} online`));
-            }
+          try {
+            if (docSnap.exists()) {
+              const data = { ...docSnap.data(), uid: docSnap.id } as UserProfile;
+              setProfile(data);
+              
+              // Set online status only if profile already exists to satisfy strict rules
+              if (isOnline) {
+                setDoc(userDocRef, { 
+                  isOnline: true, 
+                  lastActive: serverTimestamp() 
+                }, { merge: true }).catch(err => {
+                  console.error("Error updating presence:", err);
+                });
+              }
 
-            // If profile exists but role is missing, we need onboarding
-            if (!data.role) {
-              setLoading(false);
+              // If profile exists but role is missing, we need onboarding
+              if (!data.role) {
+                setLoading(false);
+              }
+            } else {
+              // Profile doesn't exist at all
+              setProfile(null);
             }
-          } else {
-            // Profile doesn't exist at all
-            setProfile(null);
+          } catch (err) {
+            console.error("Error processing profile snapshot:", err);
+          } finally {
+            setLoading(false);
           }
-          setLoading(false);
         }, (err) => {
-          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+          console.error("Profile snapshot error:", err);
+          // If we fail to read profile, we must still allow the app to continue (e.g. to onboarding)
           setLoading(false);
         });
 
@@ -157,14 +167,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async () => {
     try {
-      await setPersistence(auth, browserLocalPersistence);
       const provider = new GoogleAuthProvider();
+      setPersistence(auth, browserLocalPersistence).catch(console.error);
       await signInWithPopup(auth, provider);
     } catch (err: any) {
       console.error("Sign in error:", err);
-      // Don't alert for cancellation
-      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-by-user') {
-        alert('Google Login Error: ' + err.code + ' - ' + err.message);
+      // Detailed error for common popup issues
+      if (err.code === 'auth/popup-blocked') {
+        alert('Login popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-by-user') {
+        // Silent
+      } else {
+        alert('Login Error: ' + err.message);
       }
     }
   };
